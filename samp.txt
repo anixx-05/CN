@@ -1,0 +1,1323 @@
+ARP
+//Server: Serverarp.java 
+import java.io.*;  
+import java.net.*;  
+import java.util.*; 
+ 
+class Serverarp 
+{ 
+public static void main(String args[]) 
+{ 
+try 
+{ 
+ServerSocket obj=new ServerSocket(138);  
+Socket obj1=obj.accept(); 
+while(true) 
+{ 
+DataInputStream din=new DataInputStream(obj1.getInputStream());  
+DataOutputStream dout=new DataOutputStream(obj1.getOutputStream()); 
+String str=din.readLine(); 
+String ip[]={"165.165.80.80","165.165.79.1"};  
+String mac[]={"6A:08:AA:C2","8A:BC:E3:FA"}; 
+ for(int i=0;i<ip.length;i++) 
+{ 
+if(str.equals(ip[i])) 
+{ 
+dout.writeBytes(mac[i]+'\n'); 
+break; 
+} 
+} 
+obj.close(); 
+} 
+} 
+catch(Exception e) 
+{ 
+System.out.println(e); 
+} 
+} 
+} 
+//Client: Clientarp.java 
+import java.io.*;  
+import java.net.*;  
+import java.util.*;  
+class Clientarp 
+{ 
+public static void main(String args[]) 
+{ 
+try 
+{ 
+BufferedReader in=new BufferedReader(new InputStreamReader(System.in)); 
+Socket clsct=new Socket("127.0.0.1",138); 
+DataInputStream din=new DataInputStream(clsct.getInputStream());  
+DataOutputStream dout=new DataOutputStream(clsct.getOutputStream());  
+System.out.println("Enter the Logical address(IP):"); 
+String str1=in.readLine();  
+dout.writeBytes(str1+'\n');  
+String str=din.readLine(); 
+System.out.println("The Physical Address is: "+str);  
+clsct.close(); 
+} 
+catch (Exception e) 
+{ 
+System.out.println(e); 
+} 
+} 
+} 
+
+
+
+
+
+
+
+
+
+STOP AND WAIT
+//Server: Sender.java 
+import java.io.*; 
+import java.net.*; 
+public class Sender 
+{ 
+ Socket sender; 
+ ObjectOutputStream out; 
+ ObjectInputStream in; 
+ String packet,ack,str, msg; 
+ int n,i=0,sequence=0; 
+ Sender(){} 
+ public void run() 
+ { 
+   try{ 
+BufferedReader br=new BufferedReader(new 
+InputStreamReader(System.in)); 
+   System.out.println("Waiting for Connection...."); 
+    sender = new Socket("localhost",2005); 
+   sequence=0; 
+   out=new ObjectOutputStream(sender.getOutputStream()); 
+   out.flush(); 
+   in=new ObjectInputStream(sender.getInputStream()); 
+   str=(String)in.readObject(); 
+    System.out.println("reciver     > "+str); 
+   System.out.println("Enter the data to send...."); 
+   packet=br.readLine(); 
+   n=packet.length(); 
+   do{ 
+    try{ 
+ 
+     if(i<n) 
+     { 
+      msg=String.valueOf(sequence); 
+      msg=msg.concat(packet.substring(i,i+1)); 
+     } 
+     else if(i==n) 
+     { 
+       msg="end";out.writeObject(msg);break; 
+       
+     } 
+   out.writeObject(msg); 
+   sequence=(sequence==0)?1:0; 
+   out.flush(); 
+   System.out.println("data sent>"+msg); 
+   ack=(String)in.readObject(); 
+   System.out.println("waiting for ack.....\n\n"); 
+    if(ack.equals(String.valueOf(sequence))) 
+    { 
+     i++; 
+     System.out.println("receiver   >  "+" packet recieved\n\n"); 
+    } 
+    else 
+    {     
+     System.out.println("Time out resending data....\n\n"); 
+     sequence=(sequence==0)?1:0; 
+    } 
+   }catch(Exception e){} 
+  }while(i<n+1); 
+   System.out.println("All data sent. exiting."); 
+ }catch(Exception e){} 
+   finally{ 
+  try{ 
+   in.close(); 
+   out.close(); 
+   sender.close(); 
+                     } 
+  catch(Exception e){} 
+         } 
+           } 
+           public static void main(String args[]) 
+           { 
+                Sender s=new Sender(); 
+ s.run(); 
+           } 
+} 
+//Client : Receiver.java 
+import java.io.*; 
+import java.net.*; 
+public class Receiver 
+{ 
+ ServerSocket reciever; 
+ Socket connection=null; 
+ ObjectOutputStream out; 
+ ObjectInputStream in; 
+ String packet,ack,data=""; 
+ int i=0,sequence=0; 
+ Receiver(){} 
+ public void run() 
+ { 
+  try{ 
+   BufferedReader br=new BufferedReader(new 
+InputStreamReader(System.in)); 
+   reciever = new ServerSocket(2005,10); 
+   System.out.println("waiting for connection..."); 
+   connection=reciever.accept(); 
+   sequence=0; 
+   System.out.println("Connection established   :"); 
+   out=new ObjectOutputStream(connection.getOutputStream()); 
+   out.flush(); 
+   in=new ObjectInputStream(connection.getInputStream()); 
+   out.writeObject("connected    ."); 
+ 
+    do{ 
+   try{ 
+    packet=(String)in.readObject(); 
+    if(Integer.valueOf(packet.substring(0,1))==sequence){ 
+    data+=packet.substring(1); 
+    sequence=(sequence==0)?1:0; 
+    System.out.println("\n\nreceiver         >"+packet); 
+       } 
+                  else 
+                  { 
+    System.out.println("\n\nreceiver         >"+packet +"   duplicate 
+data"); 
+                  } 
+   if(i<3) 
+   { 
+    out.writeObject(String.valueOf(sequence));i++; 
+   } 
+   else 
+   { 
+    out.writeObject(String.valueOf((sequence+1)%2)); 
+    i=0; 
+   } 
+     } 
+   catch(Exception e){} 
+               } 
+    while(!packet.equals("end")); 
+   System.out.println("Data recived="+data); 
+   out.writeObject("connection ended    ."); 
+  }   
+                 catch(Exception e){} 
+  finally{ 
+    try{ 
+     in.close(); 
+     out.close(); 
+     reciever.close(); 
+    }catch(Exception e){} 
+         } 
+         } 
+ 
+ public static void main(String args[]){ 
+ Receiver s=new Receiver(); 
+ while(true){ 
+  s.run(); 
+ } }}
+
+GO BACK N PROTOCOL
+//Server:ARQ_Server.java 
+import java.net.*; 
+import java.io.*; 
+import java.util.*; 
+public class ARQ_Server 
+{ 
+ public static void main(String args[]) throws Exception 
+ { 
+  ServerSocket server=new ServerSocket(6262); 
+  System.out.println("Server established."); 
+  Socket client=server.accept(); 
+  ObjectOutputStream oos=new ObjectOutputStream(client.getOutputStream()); 
+  ObjectInputStream ois=new ObjectInputStream(client.getInputStream()); 
+  System.out.println("Client is now connected."); 
+  int x=(Integer)ois.readObject(); 
+  int k=(Integer)ois.readObject(); 
+  int j=0; 
+  int i=(Integer)ois.readObject(); 
+  boolean flag=true; 
+  Random r=new Random(6); 
+  int mod=r.nextInt(6); 
+  while(mod==1||mod==0) 
+  mod=r.nextInt(6); 
+  while(true) 
+  { 
+   int c=k; 
+   for(int h=0;h<=x;h++) 
+   { 
+    System.out.print("|"+c+"|"); 
+    c=(c+1)%x; 
+   } 
+    System.out.println(); 
+   
+
+ System.out.println(); 
+   if(k==j) 
+   { 
+    System.out.println("Frame "+k+" recieved"+"\n"+"Data:"+j); 
+    j++; 
+    System.out.println(); 
+   } 
+   else 
+System.out.println("Frames recieved not in correct order"+"\n"+" 
+Expected frame:" + j +"\n"+ " Recieved frame no :"+ k); 
+    System.out.println(); 
+   if(j%mod==0 && flag) 
+   { 
+    System.out.println("Error found. Acknowledgement not sent."); 
+    flag=!flag; 
+    j--; 
+   } 
+   else if(k==j-1) 
+   { 
+    oos.writeObject(k); 
+    System.out.println("Acknowledgement sent"); 
+   } 
+   System.out.println(); 
+   if(j%mod==0) 
+    flag=!flag; 
+   k=(Integer)ois.readObject(); 
+   if(k==-1) 
+   break; 
+   i=(Integer)ois.readObject(); 
+  } 
+  System.out.println("Client finished sending data. Exiting"); 
+  oos.writeObject(-1); 
+
+ } 
+} 
+
+//Client:ARQ_Client.java 
+import java.util.*; 
+import java.net.*; 
+import java.io.*; 
+public class ARQ_Client 
+{ 
+ public static void main(String args[]) throws Exception 
+ { 
+  BufferedReader br=new BufferedReader(new InputStreamReader(System.in)); 
+  System.out.print("Enter the value of m : "); 
+  int m=Integer.parseInt(br.readLine()); 
+  int x=(int)((Math.pow(2,m))-1); 
+  System.out.print("Enter no. of frames to be sent:"); 
+  int count=Integer.parseInt(br.readLine()); 
+  int data[]=new int[count]; 
+  int h=0; 
+  for(int i=0;i<count;i++) 
+  { 
+   System.out.print("Enter data for frame no " +h+ " => "); 
+   data[i]=Integer.parseInt(br.readLine()); 
+   h=(h+1)%x; 
+  } 
+  Socket client=new Socket("localhost",6262); 
+  ObjectInputStream ois=new ObjectInputStream(client.getInputStream()); 
+  ObjectOutputStream oos=new ObjectOutputStream(client.getOutputStream()); 
+  System.out.println("Connected with server."); 
+  boolean flag=false; 
+  GoBackNListener listener=new GoBackNListener(ois,x); 
+  listener=new GoBackNListener(ois,x); 
+  listener.t.start(); 
+
+  int strt=0; 
+  h=0; 
+  oos.writeObject(x); 
+
+  do 
+  { 
+   int c=h; 
+   for(int i=h;i<count;i++) 
+   { 
+    System.out.println("|"+c+"|"); 
+    c=(c+1)%x; 
+   } 
+  System.out.println(); 
+  System.out.println(); 
+  h=strt; 
+  for(int i=strt;i<x;i++) 
+  { 
+   System.out.println("Sending frame:"+h); 
+   h=(h+1)%x; 
+   System.out.println(); 
+   oos.writeObject(i); 
+   oos.writeObject(data[i]); 
+   Thread.sleep(100); 
+  } 
+  listener.t.join(3500); 
+  if(listener.reply!=x-1) 
+  { 
+System.out.println("No reply from server in 3.5 seconds. Resending data 
+from frame no " + (listener.reply+1)); 
+   System.out.println(); 
+   strt=listener.reply+1; 
+   flag=false; 
+  } 
+
+
+  else 
+  { 
+   System.out.println("All elements sent successfully. Exiting"); 
+   flag=true; 
+
+  } 
+  }while(!flag); 
+   oos.writeObject(-1); 
+ } 
+} 
+class GoBackNListener implements Runnable 
+{ 
+ Thread t; 
+ ObjectInputStream ois; 
+ int reply,x; 
+ GoBackNListener(ObjectInputStream o,int i) 
+ { 
+  t=new Thread(this); 
+  ois=o; 
+  reply=-2; 
+  x=i; 
+ } 
+ @Override 
+  public void run()  
+  { 
+  try 
+  { 
+   int temp=0; 
+   while(reply!=-1) 
+   { 
+    reply=(Integer)ois.readObject(); 
+    if(reply!=-1 && reply!=temp+1) 
+
+
+    reply=temp; 
+    if(reply!=-1) 
+   { 
+    temp=reply; 
+System.out.println("Acknowledgement of frame no " + (reply%x) + " 
+recieved."); 
+    System.out.println(); 
+   } 
+  } 
+  reply=temp; 
+  } 
+  catch(Exception e) 
+  { 
+   System.out.println("Exception => " + e); }
+SELECTIVE REPEAT ARQ
+//Server : RepeatARQserver.java 
+ import java.io.DataInputStream; 
+import java.io.DataOutputStream; 
+import java.io.IOException; 
+import java.net.ServerSocket; 
+import java.net.Socket; 
+import java.net.SocketException; 
+ public class RepeatARQserver  
+{ 
+ static ServerSocket Serversocket; 
+ static DataInputStream dis; 
+ static DataOutputStream dos; 
+ 
+ public static void main(String[] args) throws SocketException  
+ { 
+ 
+  try  
+  { 
+   int a[] = { 30, 40, 50, 60, 70, 80, 90, 100 }; 
+   Serversocket = new ServerSocket(8011); 
+   System.out.println(“waiting for connection”); 
+   Socket client = Serversocket.accept(); 
+   dis = new DataInputStream(client.getInputStream()); 
+   dos = new DataOutputStream(client.getOutputStream()); 
+   System.out.println(“The number of packets sent is:” + a.length); 
+   int y = a.length; 
+   dos.write(y); 
+   dos.flush(); 
+ 
+   for (int € = 0; € < a.length; i++)  
+   { 
+    dos.write(a[i]); 
+    dos.flush(); 
+   } 
+ 
+   int k = dis.read(); 
+ 
+   dos.write(a[k]); 
+   dos.flush(); 
+ 
+  } 
+  catch (IOException e) 
+  { 
+   System.out.println€; 
+  } 
+  finally 
+  { 
+   try  
+   { 
+    dis.close(); 
+    dos.close(); 
+   } 
+   catch (IOException e)  
+   { 
+    e.printStackTrace(); 
+   } 
+ 
+  } 
+ } 
+} 
+//Client : RepeatARQclient.java 
+import java.lang.System; 
+import java.net.*;  
+import java.io.*; 
+import java.text.*; 
+import java.util.Random; 
+import java.util.*; 
+public class RepeatARQclient { 
+ static Socket connection; 
+ 
+ public static void main(String a[]) throws SocketException { 
+  try { 
+   int v[] = new int[10];  
+   int n = 0; 
+   Random rands = new Random(); 
+   int rand = 0;  
+      
+   InetAddress addr = InetAddress.getByName(“Localhost”); 
+   System.out.println(addr); 
+   connection = new Socket(addr, 8011); 
+   DataOutputStream out = new DataOutputStream( 
+     connection.getOutputStream()); 
+   DataInputStream in = new DataInputStream( 
+     connection.getInputStream()); 
+   int p = in.read(); 
+   System.out.println(“No of frame is:” + p); 
+ 
+   for (int € = 0; € < p; i++) { 
+    v[i] = in.read(); 
+    System.out.println(v[i]); 
+    //g[i] = v[i]; 
+   } 
+   rand = rands.nextInt(p);//FRAME NO. IS RANDOMLY GENERATED 
+   
+   v[rand] = -1; 
+   for (int € = 0; € < p; i++) 
+    { 
+     System.out.println(“Received frame is: “ + v[i]); 
+ 
+    } 
+   for (int € = 0; € < p; i++) 
+    if (v[i] == -1) { 
+     System.out.println(“Request to retransmit from packet no “ 
+       + (i+1) + “ again!!”); 
+     n = €; 
+     out.write(n); 
+     out.flush(); 
+    } 
+ 
+   System.out.println();     
+    v[n] = in.read(); 
+    System.out.println(“Received frame is: “ + v[n]); 
+   System.out.println(“quiting”); 
+  } catch (Exception e) { 
+   System.out.println€; 
+  } 
+ } 
+} 
+TRACEROUTE
+import java.io.*; 
+import java.net.*; 
+import java.lang.*; 
+ 
+class Traceroute 
+{ 
+public static void main(String args[]) 
+{ 
+BufferedReader in; 
+try{ 
+Runtime r=Runtime.getRuntime(); 
+Process p=r.exec("tracert www.google.com"); 
+in=new BufferedReader(new InputStreamReader(p.getInputStream())); 
+String line; 
+if(p==null) 
+System.out.println("could not connect"); 
+while((line=in.readLine())!=null) 
+{ 
+ System.out.println(line); 
+} 
+} 
+catch(IOException e) 
+{ 
+ System.out.println(e.toString()); 
+} 
+}  
+} 
+
+REMOTE COMMAND EXECUTION
+//Server:
+
+import java.io.*;
+import java.net.*;
+class RemoteServer 
+{
+ public static void main(String args[]) 
+	{
+        		try 
+		{
+            		int Port;
+            		BufferedReader Buf = new BufferedReader(new 
+			InputStreamReader(System.in));
+            		System.out.print(" Enter the Port Address : ");
+            		Port = Integer.parseInt(Buf.readLine());
+            		ServerSocket ss = new ServerSocket(Port);
+            		System.out.println(" Server is Ready To Receive a Command. ");
+            		System.out.println(" Waiting ..... ");
+            		Socket s = ss.accept();
+            		if (s.isConnected())
+                			System.out.println(" Client Socket is Connected Successfully. ");
+            		InputStream in = s.getInputStream();
+            		OutputStream ou = s.getOutputStream();
+            		BufferedReader buf = new BufferedReader(new InputStreamReader(in));
+            		String cmd = buf.readLine();
+            		PrintWriter pr = new PrintWriter(ou, true);
+            		pr.println(cmd);
+            		ProcessBuilder pb = new ProcessBuilder(cmd.split(" "));
+            		pb.inheritIO(); // output/error shown in server console
+            		Process p = pb.start();
+            		System.out.println(" The " + cmd + " Command is Executed Successfully. 
+			“);
+            		pr.close();
+            		ou.close();
+            		in.close();
+            		s.close();
+            		ss.close();
+        		} 
+		catch (Exception e) 
+		{
+            		System.out.println(" Error : " + e.getMessage());
+        		}
+   	 }
+}
+//Client :
+
+import java.io.*;
+import java.net.*;
+class RemoteClient 
+{
+    	public static void main(String args[]) 
+	{
+        		try 
+		{
+            		int Port;
+            		BufferedReader Buf = new BufferedReader(new 
+			InputStreamReader(System.in));
+            		System.out.print(" Enter the Port Address : ");
+            		Port = Integer.parseInt(Buf.readLine());
+            		Socket s = new Socket("localhost", Port);
+            		if (s.isConnected())
+                			System.out.println(" Server Socket is Connected Successfully. ");
+            		InputStream in = s.getInputStream();
+            		OutputStream ou = s.getOutputStream();
+            		BufferedReader buf = new BufferedReader(new 
+			InputStreamReader(System.in));
+            		BufferedReader buf1 = new BufferedReader(new InputStreamReader(in));
+            		PrintWriter pr = new PrintWriter(ou, true);
+            		System.out.print(" Enter the Command to be Executed : ");
+            		String command = buf.readLine();
+            		pr.println(command);
+            		String str = buf1.readLine();
+            		System.out.println(" " + str + " Opened Successfully. ");
+            		System.out.println(" The " + str + " Command is Executed Successfully. ");
+            		pr.close();
+            		ou.close();
+            		in.close();
+            		s.close();
+        		} 
+		catch (Exception e) 
+		{
+           			 System.out.println(" Error : " + e.getMessage());
+        		}
+    	}
+}
+
+
+
+
+
+
+
+REMOTE METHOD INVOCATION
+//Server:
+
+import java.rmi.*;
+public class rmiserver 
+{
+    	public static void main(String[] args) 
+	{
+        		try 
+		{
+            		serverimpl m = new serverimpl();
+            		Naming.rebind("rmi://localhost:5000/abc", m);
+            		System.out.println("Server ready, waiting for clients...");
+        		} 
+		catch (Exception e) 
+		{
+            		System.out.println("Server exception: " + e);
+        		}
+    	}
+}
+
+//Client :
+
+import java.io.*;
+import java.rmi.*;
+public class rmiclient 
+{
+    	public static void main(String[] args) 
+	{
+        		try 
+		{
+            		serverint f = (serverint) Naming.lookup("rmi://localhost:5000/abc");
+            		BufferedReader br = new BufferedReader(new 
+			InputStreamReader(System.in));
+            		System.out.print("Enter the number: ");
+            		int n1 = Integer.parseInt(br.readLine());
+            		System.out.println("The factorial number is " + f.fact(n1));
+        		} 
+		catch (Exception e) 
+		{
+            		System.out.println("Client exception: " + e);
+        		}
+    	}
+}
+
+//Implementation code: serverimpl.java 
+
+import java.rmi.*;
+import java.rmi.server.*;
+public class serverimpl extends UnicastRemoteObject implements serverint 
+{
+    	public serverimpl() throws RemoteException 
+	{
+        		super();
+    	}
+    	public int fact(int n) 
+	{
+        		int result = 1;
+        		for (int i = 1; i <= n; i++) 
+		{
+            		result *= i;
+        		}
+        		return result;
+    	}
+}
+
+
+//Interface code: serverint.java 
+
+import java.rmi.*;
+public interface serverint extends Remote 
+{
+    	int fact(int n) throws RemoteException;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+REMOTE SCREEN CAPTURE
+//Server:
+
+import java.net.*;
+import java.io.*;
+import java.awt.image.*;
+import javax.imageio.*;
+import javax.swing.*;
+class screenserver
+{
+	public static void main(String args[])throws Exception
+	{
+		ServerSocket server=null;
+		Socket socket;
+		server=new ServerSocket(4000);
+		System.out.println("Server Waiting for image");
+		
+		socket=server.accept();
+		System.out.println("Client connected...");
+		InputStream in=socket.getInputStream();
+		DataInputStream dis=new DataInputStream(in);
+		int len=dis.readInt();
+		byte[] data=new byte[len];
+		dis.readFully(data);
+		dis.close();
+		in.close();
+		InputStream ian=new ByteArrayInputStream(data);
+		BufferedImage bImage=ImageIO.read(ian);
+		ImageIO.write(bImage,"jpg",new File("screencaptured.jpg"));
+	}
+}
+
+
+
+//Client :
+
+import javax.swing.*;
+import java.net.*;
+import java.awt.image.*;
+import javax.imageio.*;
+import java.io.*;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+import java.awt.Rectangle;
+public class screenclient
+{
+ 	public static void main(String args[]) throws Exception
+    	{	
+        		Socket soc;
+        		BufferedImage img = null;
+        		soc = new Socket("localhost", 4000);
+        		System.out.println("Client is running...");
+        
+        		try
+        		{
+            		System.out.println("Reading image from disk...");
+            		Robot robot = new Robot();
+            		String format = "jpg";
+            	Rectangle screenRect = new 
+		Rectangle(Toolkit.getDefaultToolkit().getScreenSize());  
+            		BufferedImage screenFullImage = robot.createScreenCapture(screenRect);
+            		ImageIO.write(screenFullImage, format, new File("screen.jpg"));
+            		System.out.println("Screen Capture successful.");
+            		img = ImageIO.read(new File("screen.jpg"));
+            		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            		ImageIO.write(img, "jpg", baos);
+            		baos.flush();
+          			byte[] bytes = baos.toByteArray();
+            		baos.close();
+            		System.out.println("Sending image to server...");
+            		OutputStream out = soc.getOutputStream();
+            		DataOutputStream dos = new DataOutputStream(out);
+            		dos.writeInt(bytes.length);
+            		dos.write(bytes, 0, bytes.length);
+            		System.out.println("Image sent to server successfully.");
+            		dos.close();
+            		out.close();
+        		} 
+        		catch (Exception e)
+        		{
+            		System.out.println("Exception: " + e.getMessage());
+        		}
+       		soc.close();
+        		System.out.println("Client stopped.");
+    	}
+}
+
+
+
+
+REMOTE MOUSE CAPTURE
+//Server:
+
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.event.InputEvent;
+import javax.swing.*;
+import java.net.*;
+import java.io.*;
+import java.awt.Robot;
+class Moveserver extends JFrame
+{
+    	JPanel mousepanel = new JPanel();
+   	public Moveserver()
+    	{
+        		super("server");
+        		mousepanel.setBackground(Color.BLACK);
+        		setLayout(new GridLayout(1, 1));
+        		mousepanel.setSize(300, 100);
+        		add(mousepanel);
+    	}
+    	public static void main(String arg[])
+    	{
+        		String a, b;
+        		Integer x, y;
+        		boolean flag = true;
+        		try
+        		{
+            		ServerSocket ss = new ServerSocket(8500);
+            		System.out.println("Server Listening.........");
+            		Socket s = ss.accept();
+            		System.out.println("Connection Established.....");
+            		BufferedReader in = new BufferedReader(new 
+			InputStreamReader(s.getInputStream()));
+Moveserver m = new Moveserver();
+m.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+m.setSize(300, 100);
+m.setVisible(true);
+            		Robot robot = new Robot();
+           			while(flag)
+            		{		
+                			a = in.readLine();
+                			b = in.readLine();
+                	                	x = Integer.valueOf(a);
+                			y = Integer.valueOf(b);
+                			robot.mouseMove(x, y);
+       				m.repaint();
+            		}
+        		}
+        		catch(Exception e)
+        		{	
+            		System.out.println("Exception: " + e);
+        		}
+    	}
+}
+
+//Client :
+
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import java.net.*;
+import java.io.*;
+public class Moveclient extends JFrame implements MouseMotionListener
+{
+    	JPanel mousepanel = new JPanel();
+    	static Socket s;
+    	static PrintWriter out;
+    	int x, y;
+    	String xs, ys;
+    	public Moveclient()
+    	{
+        		super("Move the mouse over it");
+        		mousepanel.setBackground(Color.BLACK);
+        		setLayout(new GridLayout(1, 1));
+        		mousepanel.setSize(300, 100);
+        		add(mousepanel);
+        		mousepanel.addMouseMotionListener(this);
+    	}
+    
+    	public static void main(String args[])
+    	{
+        		try
+        		{	
+            		s = new Socket("127.0.0.1", 8500);
+            		System.out.println("Connection Established");
+            		out = new PrintWriter(s.getOutputStream(), true);
+            		Moveclient m = new Moveclient();
+            		m.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            		m.setSize(300, 100);
+            		m.setVisible(true);
+        		}
+        		catch(Exception e)
+        		{
+            		System.out.println("Exception: " + e);
+        		}
+    	}
+    
+    	public void mouseMoved(MouseEvent event)
+    	{
+        		x = event.getX();
+        		y = event.getY();
+        		xs = String.valueOf(x);
+        		ys = String.valueOf(y);
+        		out.println(xs);
+        		out.println(ys);
+    	}
+    
+    	public void mouseDragged(MouseEvent event)
+    	{	
+        
+    	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+REMOTE KEYBOARD CONTROL
+//Server:
+
+import java.io.*;
+import java.net.*;
+public class Mytelserver
+{
+ 	public static void main(String arg[])
+    	{
+        		String is;
+        		String word;
+        		boolean done = false;
+        		try
+        		{
+            		ServerSocket serv = new ServerSocket(3333);
+Socket sock = serv.accept();
+            		System.out.println("Server started");
+         			BufferedReader in = new BufferedReader(new 
+			InputStreamReader(sock.getInputStream()));
+            		BufferedReader inp = new BufferedReader(new 
+			InputStreamReader(System.in));
+PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+           			System.out.println("hai the program started");
+            		while(!done)
+            		{
+                			is = in.readLine();
+                			System.out.println(is);
+            		}
+            		serv.close();
+        		}
+        		catch(Exception e)
+        		{
+            		System.out.println("Exception;" + e);
+        		}
+    	}
+}
+
+
+//Client :
+
+import java.awt.*;
+import java.awt.event.*;
+import java.net.*;
+import java.io.*;
+public class keyclient extends Frame
+{
+    	Label label;
+    	static Socket s;
+    	static PrintWriter out;
+    	TextField txtField;
+    
+    	public static void main(String[] args)
+    	{
+        		try
+        		{
+            		s = new Socket("127.0.0.1", 3333);
+            		System.out.println("Connection Established");
+            		out = new PrintWriter(s.getOutputStream(), true);
+            		keyclient k = new keyclient();
+        		}
+        		catch(Exception e)
+        		{
+            		System.out.println("Exception:" + e);
+        		}
+    	}
+    
+    	public keyclient()
+    	{
+        		super(" Key Press Event Frame");
+        		Panel panel = new Panel();
+        		label = new Label();
+        		txtField = new TextField(20);
+        		txtField.addKeyListener(new MyKeyListener());
+        		add(label, BorderLayout.NORTH);
+        		panel.add(txtField, BorderLayout.CENTER);
+        		add(panel, BorderLayout.CENTER);
+        		addWindowListener(new WindowAdapter()
+        		{
+            		public void windowClosing(WindowEvent we)
+            		{
+                			System.exit(0);
+            		}
+        		});
+        		setSize(400, 400);
+        		setVisible(true);
+    	}
+    
+    	public class MyKeyListener extends KeyAdapter
+    	{
+        		public void keyPressed (KeyEvent ke)
+        		{
+            		char i = ke.getKeyChar();
+            		String str = Character.toString(i);
+            		out.println(str);
+            		label.setText(str);
+        		}}}
+DIJKSTRA
+import java.util.*;
+import java.io.*;
+import java.lang.*;
+public class Dijkstra
+{
+    	static final int totalVertex = 9;
+int minimumDistance(int distance[], Boolean spSet[])
+    	{
+        		int m = Integer.MAX_VALUE, m_index = -1;
+        		for (int vx = 0; vx < totalVertex; vx++)
+        		{
+            		if (spSet[vx] == false && distance[vx] <= m)
+            		{
+                			m = distance[vx];
+                			m_index = vx;
+            		}
+        		}
+        		return m_index;
+    	}
+
+    	void printSolution(int distance[], int n)
+    	{
+        		System.out.println("The shortest Distance from source 0th node to all other nodes 
+		are: ");
+for (int j = 0; j < n; j++)
+            		System.out.println("To " + j + " the shortest distance is: " + distance[j]);
+    	}
+
+    	void dijkstra(int graph[][], int s)
+    	{
+        		int distance[] = new int[totalVertex]; 
+        		Boolean spSet[] = new Boolean[totalVertex];
+        		for (int j = 0; j < totalVertex; j++)
+        		{
+            		distance[j] = Integer.MAX_VALUE;
+            		spSet[j] = false;
+        		}
+        		distance[s] = 0;
+        		for (int cnt = 0; cnt < totalVertex - 1; cnt++)
+        		{
+            		int ux = minimumDistance(distance, spSet);
+            		spSet[ux] = true;
+            		for (int vx = 0; vx < totalVertex; vx++)
+                			if (!spSet[vx] && graph[ux][vx] != -1 &&
+                        			distance[ux] != Integer.MAX_VALUE &&
+                        			distance[ux] + graph[ux][vx] < distance[vx])
+                			{
+                    				distance[vx] = distance[ux] + graph[ux][vx];
+                			}
+        		}
+        		printSolution(distance, totalVertex);
+    	}
+
+
+    	public static void main(String argvs[])
+    	{
+        		int grph[][] = new int[][] {
+            		{ -1, 3, -1, -1, -1, -1, -1, 7, -1 },
+            		{ 3, -1, 7, -1, -1, -1, -1, 10, 4 },
+            		{ -1, 7, -1, 6, -1, 2, -1, -1, 1 },
+            		{ -1, -1, 6, -1, 8, 13, -1, -1, 3 },
+            		{ -1, -1, -1, 8, -1, 9, -1, -1, -1 },
+            		{ -1, -1, 2, 13, 9, -1, 4, -1, 5 },
+            		{ -1, -1, -1, -1, -1, 4, -1, 2, 5 },
+            		{ 7, 10, -1, -1, -1, -1, 2, -1, 6 },
+            		{ -1, 4, 1, 3, -1, 5, 5, 6, -1 }
+        		};
+        		Dijkstra obj = new Dijkstra();
+        		obj.dijkstra(grph, 0);
+    	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SECURE KEY
+//Server:
+
+import java.io.*;
+import java.net.*;
+class SecurityServer
+{
+	public static void main(String args[]) throws Exception
+	{
+		try
+		{
+			ServerSocket ss=new ServerSocket(9000);
+			Socket s=ss.accept();
+			PrintStream ps=new PrintStream(s.getOutputStream());
+			BufferedReader br=new BufferedReader(new 
+			InputStreamReader(System.in));
+			int i=0,k;
+			String s2="";
+			System.out.println("\n ENTER A STRING:");
+			String s1=br.readLine();
+			System.out.print(" \n ENTER THE KEY:");
+			k=Integer.parseInt(br.readLine());
+			while(i<s1.length())
+			{
+				char c1=s1.charAt(i++);
+				int n=(int)c1+k+1;
+				c1=(char)n;
+				s2+=c1;
+			}
+			System.out.println("ENCRYPTED STRING IS:"+s2);
+			ps.println(s2);
+			ps.println(k);
+			ps.close();
+			s.close();
+			ss.close();
+		}
+		catch(Exception e)
+		{
+			System.out.println("\n ERROR:"+e);
+		}
+	}
+}
+
+//Client :
+
+import java.io.*;
+import java.net.*;
+class SecurityClient
+{
+	public static void main(String args[]) throws Exception
+	{
+		Socket s=new Socket("LocalHost",9000);
+		BufferedReader br=new BufferedReader(new 
+		InputStreamReader(s.getInputStream()));
+		int i=0,k1;
+		BufferedReader br1=newBufferedReader(new InputStreamReader(System.in));
+		String s3=" ";
+		String s2=br.readLine();
+		int k=Integer.parseInt(br.readLine());
+		System.out.println("RECEIVED MSG:"+s2);
+		System.out.println ("\n ENTER THE KEY:");
+		k1=Integer.parseInt(br1.readLine());
+		if(k==k1)
+		{
+			while(i<s2.length())
+			{
+				char c1=s2.charAt(i++);
+				int n=(int)c1-k1-1;
+				c1 = (char)n;
+				s3+=c1;
+			}
+			System.out.println("DECRYPTED STRING IS:"+s3);
+			s.close();
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+RSA
+import java.math.BigInteger;
+import java.util.Random;
+import java.util.Scanner;
+class RSA 
+{
+    	private BigInteger p;
+    	private BigInteger q;
+    	private BigInteger N;
+    	private BigInteger phi;
+    	private BigInteger e;
+    	private BigInteger d;
+    	private int bitlength = 1024;
+    	private int blocksize = 256; 
+    	private Random r;
+    	public RSA() 
+	{
+        		r = new Random();
+        		p = BigInteger.probablePrime(bitlength, r);
+        		q = BigInteger.probablePrime(bitlength, r);
+        		N = p.multiply(q);
+        		phi = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE));
+        		e = BigInteger.probablePrime(bitlength / 2, r);
+        		while (phi.gcd(e).compareTo(BigInteger.ONE) > 0 && e.compareTo(phi) < 0) 
+{
+            		e = e.add(BigInteger.ONE);
+        		}
+        		d = e.modInverse(phi);
+    	}
+   
+ public RSA(BigInteger e, BigInteger d, BigInteger N) 
+	{
+        		this.e = e;
+        		this.d = d;
+        		this.N = N;
+    	}
+    	
+public static void main(String[] args) 
+	{
+        		RSA rsa = new RSA();
+        		Scanner in = new Scanner(System.in);
+        		System.out.println("Enter the plain text:");
+        		String teststring = in.nextLine();
+        		System.out.println("Encrypting String: " + teststring);
+        		System.out.println("String in Bytes: " + bytesToString(teststring.getBytes()));
+        		byte[] encrypted = rsa.encrypt(teststring.getBytes());
+        		System.out.println("Encrypted String in Bytes: " + bytesToString(encrypted));
+        		byte[] decrypted = rsa.decrypt(encrypted);
+        		System.out.println("Decrypted String in Bytes: " + bytesToString(decrypted));
+        		System.out.println("Decrypted String: " + new String(decrypted));
+		in.close();
+   	}
+
+   	 private static String bytesToString(byte[] encrypted) 
+	{
+        		StringBuilder test = new StringBuilder();
+       		for (byte b : encrypted) 
+		{
+            		test.append(Byte.toString(b));
+        		}
+        		return test.toString();
+    	}
+
+    	public byte[] encrypt(byte[] message) 
+	{
+        		return (new BigInteger(message)).modPow(e, N).toByteArray();
+    	}
+
+    	public byte[] decrypt(byte[] message) 
+	{
+        		return (new BigInteger(message)).modPow(d, N).toByteArray();
+    	}
+}
+
